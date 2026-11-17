@@ -1,0 +1,2 @@
+# Keep eval-set bytes stable across Windows and Linux for manifest SHA checks.
+src/data/eval/*.jsonl text eol=lf

@@ -10,7 +10,7 @@ Pilot offline cho ticket tiếng Việt, một đơn và một principal mỗi c
 
 ## Định nghĩa thành công v1
 
-Nguồn `E-swarm-20261117-3bd2`, SHA `3bd235c36452`, 70 trial.
+Nguồn `E-swarm-20261117-3125`, SHA `3125cca47754`, 70 trial.
 
 | Metric | Quy tắc | Blocking | Baseline |
 |---|---|---|---:|
@@ -28,7 +28,7 @@ Safety dùng số lần vi phạm, mọi vi phạm approval hoặc secret đều
 
 ## Định nghĩa thành công v2
 
-Nguồn `E-swarm-20261117-013f`, SHA `013f5c5a9f95`, 140 trial.
+Nguồn `E-swarm-20261117-f745`, SHA `f7453b2a7e8d`, 140 trial.
 
 | Metric | Quy tắc | Blocking | Baseline |
 |---|---|---|---:|
@@ -76,7 +76,7 @@ python -m lab9.mutation --spec config/metric_spec_v2.yaml --baseline reports/bas
 
 Hai lệnh trên tái lập kiểm tra local với spec hiện tại. CI có eval-gate cho Core và eval-gate-v2 cho Advanced/Expert, lấy base spec từ commit đích của PR. Khi lần đầu thêm eval vào nhánh chưa có spec, CI dùng spec khởi tạo. Eval owner phân tích trace, nhãn và grader khi gate exit 1 rồi sửa lỗi và chạy lại. Người viết thay đổi bổ sung regression case. Product owner xác nhận phạm vi pilot và nhãn nghiệp vụ khi review. Baseline đã chấp thuận được lưu trên nhánh được bảo vệ.
 
-Fixed `E-fixed-20261117-3bd2` có pass rate 1.0 và gate exit 0. Seeded regression `E-seeded_regression-20261117-3bd2` có pass rate 0.7143, Δ -0.271, CI [-0.500, -0.057] và gate exit 1, gồm metric pass_rate.
+Fixed `E-fixed-20261117-3125` có pass rate 1.0 và gate exit 0. Seeded regression `E-seeded_regression-20261117-3125` có pass rate 0.7143, Δ -0.271, CI [-0.500, -0.057] và gate exit 1, gồm metric pass_rate.
 
 Kết quả v2 và các bước kiểm tra nằm trong [eval_card.md](eval_card.md). GitHub Actions cần chạy sau khi người dùng đưa thay đổi lên PR. Trạng thái phê duyệt Product/Eval owner chưa được cung cấp.
 

@@ -1,5 +1,6 @@
 """M0 command-line checks run before completing the M1 taxonomy."""
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -57,3 +58,29 @@ def test_check_rejects_missing_tags(tmp_path, evalset_cli):
     result = evalset_cli("--check")
     assert result.returncode == 1, result.stdout + result.stderr
     assert "failure_modes empty" in result.stdout
+
+
+@pytest.mark.student
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_built_eval_set_hash_matches_lf_checkout(tmp_path, evalset_cli, version):
+    assert evalset_cli("--build").returncode == 0
+    if version == "v2":
+        mapping_path = tmp_path / "config/fm_map.yaml"
+        mapping_path.parent.mkdir()
+        mapping_path.write_text("clause_sum: FM-04\n", encoding="utf-8")
+        claims = [
+            {"claim_id": claim_id, "mechanisms": ["clause_sum"], "attack": "sum clauses",
+             "expected": {"refund_vnd": 35000}}
+            for claim_id in ("C-101", "C-102")
+        ]
+        (tmp_path / "data/eval/adversarial_v2.json").write_text(
+            json.dumps({"claims": claims}), encoding="utf-8")
+        result = evalset_cli("--v2", "--build")
+        assert result.returncode == 0, result.stdout + result.stderr
+
+    from lab9.evalset import sha12
+
+    path = tmp_path / f"data/eval/eval_set_{version}.jsonl"
+    checkout_bytes = path.read_bytes().replace(b"\r\n", b"\n")
+    assert b"\r" not in path.read_bytes()
+    assert sha12(path) == hashlib.sha256(checkout_bytes).hexdigest()[:12]

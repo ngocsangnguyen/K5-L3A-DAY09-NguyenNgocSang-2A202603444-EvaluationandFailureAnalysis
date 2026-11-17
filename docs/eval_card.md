@@ -4,8 +4,8 @@
 
 | Tập | Run ID baseline | SHA | Trial |
 |---|---|---|---:|
-| v1 | `E-swarm-20261117-3bd2` | `3bd235c36452` | 70 |
-| v2 | `E-swarm-20261117-013f` | `013f5c5a9f95` | 140 |
+| v1 | `E-swarm-20261117-3125` | `3125cca47754` | 70 |
+| v2 | `E-swarm-20261117-f745` | `f7453b2a7e8d` | 140 |
 
 Code và grader là working tree hiện tại, phát triển từ `d1b9471`. Báo cáo được sinh bằng `python -m lab9.eval`, Python 3.13.18, MockLLM, seed [11, 22, 33, 44, 55]. Metric spec v1 có phiên bản 1.0, v2 có phiên bản 2.0.
 
@@ -27,7 +27,7 @@ Smoke M0 PASS. Cả hai eval set có 0 problem. Taxonomy và trace tại [failur
 | `reply_ledger_match` | ≥ 1.0 | Có | 1.0 |
 | `refund_proposal_correct` | ≥ 0.95 | Theo dõi | 0.9857 |
 
-Fixed thuộc run `E-fixed-20261117-3bd2`. Seeded regression thuộc run `E-seeded_regression-20261117-3bd2`.
+Fixed thuộc run `E-fixed-20261117-3125`. Seeded regression thuộc run `E-seeded_regression-20261117-3125`.
 
 | Metric | Swarm | Fixed | Seeded regression |
 |---|---:|---:|---:|
@@ -89,7 +89,7 @@ Tính nhất quán của rows và aggregate chưa chứng minh mọi dữ liệu
 
 ## Kết quả xác nhận M5–M7
 
-`slice_regression` thuộc run `E-slice_regression-20261117-013f`, pass rate toàn tập 0.9357. Money movement có pass rate 0.8500, dưới sàn 0,90. Gate chỉ chặn `slice:money_movement/pass_rate`. `flaky_regression` thuộc run `E-flaky_regression-20261117-013f`, pass rate 0.9143 và pass_hat_5 0.5714, bị chặn ở pass_rate, pass_hat_5, slice:money_movement/pass_rate.
+`slice_regression` thuộc run `E-slice_regression-20261117-f745`, pass rate toàn tập 0.9357. Money movement có pass rate 0.8500, dưới sàn 0,90. Gate chỉ chặn `slice:money_movement/pass_rate`. `flaky_regression` thuộc run `E-flaky_regression-20261117-f745`, pass rate 0.9143 và pass_hat_5 0.5714, bị chặn ở pass_rate, pass_hat_5, slice:money_movement/pass_rate.
 
 Scorecard thực chạy từ `lab9.mutation --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json --base-spec config/metric_spec_v2.yaml`.
 
@@ -126,7 +126,7 @@ cost_per_success          50.8077    50.8077  +0.0000
 Trích output gate v1 của seeded regression để điền mô tả PR.
 
 ```text
-gate: PR E-seeded_regression-20261117-3bd2 vs main E-swarm-20261117-3bd2 · eval set 3bd235c36452
+gate: PR E-seeded_regression-20261117-3125 vs main E-swarm-20261117-3125 · eval set 3125cca47754
 pass_rate 0.7143  {"min": 0.85, "no_significant_drop": true}  Δ -0.271 CI [-0.500, -0.057]  BLOCK
 exit 1 — blocked: refund_amount_correct, pass_rate, reply_ledger_match
 ```
@@ -154,12 +154,18 @@ Trên v2, baseline so với chính nó có gate exit 0. Test bổ sung kiểm du
 
 | Lệnh | Kết quả |
 |---|---|
-| `python -m pytest -q -m student -o addopts= -k lab9` | 45 passed. |
+| `python -m pytest -q -m student -o addopts= -k lab9` | 47 passed. |
 | `python -m pytest -q` | 156 passed, 3 skipped, 5 xfailed. |
-| `python -m pytest -q -o addopts=` | 449 passed, 3 skipped, 5 xfailed. |
+| `python -m pytest -q -o addopts=` | 451 passed, 3 skipped, 5 xfailed. |
 | YAML và Bash syntax của workflow | Hợp lệ. |
 | Baseline integrity v1/v2 và harness map | Hợp lệ. |
 
 Hai report Lab 8 có sẵn, `benchmark.json` và `ablation_r1.json`, được sinh lại bằng `python -m lab8.benchmark` với đúng danh sách shape và seed ban đầu để khớp phép tính số thực trong môi trường kiểm tra. Bản cũ được lưu tạm trong `src/reports/lab9-tmp/original-*.json`.
 
 Môi trường kiểm tra là Python 3.13.18 với requirements của Lab 8 và Lab 9 trong virtualenv tạm `C:/Users/ADMIN/AppData/Local/Temp/lab9-evaluation-venv`. Khi chạy qua sandbox Windows, TMP/TEMP được trỏ về `src/reports/lab9-tmp` để SQLite mở được file. Harness pydantic-evals chạy ngoài sandbox để asyncio tạo kết nối nội bộ.
+
+## Khắc phục SHA khác nhau giữa Windows và CI
+
+CI đã phát hiện `eval_set_sha` khác baseline vì Windows sinh JSONL với CRLF, còn Git lưu LF. Đã cố định `src/data/eval/*.jsonl` bằng `text eol=lf` trong `.gitattributes` và cho cả hai hàm build ghi với `newline="\n"`.
+
+Các baseline và report variant được sinh lại bằng `lab9.eval`. SHA v1 hiện là `3125cca47754`, v2 là `f7453b2a7e8d`. Byte của hai eval set trên Windows đã được đối chiếu khớp bản LF trong commit. Hai regression test kiểm tra build v1/v2 được đưa vào nhóm student để job eval-gate chạy cùng các test Core.
