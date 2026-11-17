@@ -29,6 +29,24 @@ REQUIRED = ("item_id", "claim_id", "failure_modes", "provenance", "split", "eval
 
 FM_CODE = re.compile(r"FM-\d{2}")
 
+# What each public matrix scenario exercises, whether or not the swarm fails it.
+PUBLIC_MODES = {
+    "T01": ["FM-04"],
+    "T02": ["FM-03"],
+    "T03": ["FM-04"],
+    "T04": ["FM-01"],
+    "T05": ["FM-01", "FM-09"],
+    "T06": ["FM-06"],
+    "T07": ["FM-02"],
+    "T08": ["FM-08"],
+    "T09": ["FM-03"],
+    "T10": ["FM-01", "FM-07"],
+    "T11": ["FM-07"],
+    "T12": ["FM-07"],
+    "T13": ["FM-02", "FM-05"],
+    "T14": ["FM-04", "FM-05", "FM-08"],
+}
+
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -46,8 +64,7 @@ def build(source: Path = SOURCE) -> tuple[int, int]:
         items.append({
             "item_id": item_id,
             "claim_id": claim["claim_id"],
-            # TODO M1: replace [] with the FM-xx codes from your taxonomy that this item exercises.
-            "failure_modes": [],
+            "failure_modes": PUBLIC_MODES.get(claim.get("matrix_id"), []),
             "provenance": {"source": "lab8_public", "matrix_id": claim.get("matrix_id"),
                            "from_trace": None, "generator": None,
                            "label_by": "lab8_matrix", "checked_by": None},
@@ -145,12 +162,10 @@ def check(items_path: Path = ITEMS, labels_path: Path = LABELS) -> list[str]:
     if v2:
         # The >= 3 rule applies to every mode the adversarial split exercises.
         attacked = {fm for it in items if it.get("split") == "adversarial" for fm in it.get("failure_modes") or []}
-        count: dict[str, int] = {}
-        for item in items:
-            for fm in item.get("failure_modes") or []:
-                count[fm] = count.get(fm, 0) + 1
-        problems += [f"{fm}: only {c} item(s) in v2, need >= {MIN_PER_MODE_V2}"
-                     for fm, c in sorted(count.items()) if fm in attacked and c < MIN_PER_MODE_V2]
+        for fm in sorted(attacked):
+            count = sum(fm in (it.get("failure_modes") or []) for it in items)
+            if count < MIN_PER_MODE_V2:
+                problems.append(f"{fm}: only {count} item(s) in v2, need >= {MIN_PER_MODE_V2}")
     return problems
 
 
