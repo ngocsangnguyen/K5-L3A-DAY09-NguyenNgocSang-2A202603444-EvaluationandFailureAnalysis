@@ -23,10 +23,19 @@ jobs:
       EVAL_SPEC: config/metric_spec.yaml
       # Committed by the team after M4 (re-run on main, never hand-edited).
       EVAL_BASELINE: reports/baseline_v1.json
+      BASE_REV: ${{ github.event.pull_request.base.sha || github.sha }}
+      EVAL_BASE_SPEC: .lab9-base-spec.yaml
     defaults: {run: {working-directory: src}}
     steps:
       - uses: actions/checkout@v7
-        with: {persist-credentials: false}
+        with: {persist-credentials: false, fetch-depth: 0}
+      - name: Read the base branch metric spec for ratcheting
+        run: |
+          if git cat-file -e "${BASE_REV}:src/config/metric_spec.yaml" 2>/dev/null; then
+            git show "${BASE_REV}:src/config/metric_spec.yaml" > "$EVAL_BASE_SPEC"
+          else
+            cp "$EVAL_SPEC" "$EVAL_BASE_SPEC"
+          fi
       # setup-uv publishes only full tags (no @v10); pin the SHA.
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with: {python-version: "3.13", activate-environment: true, enable-cache: true, cache-dependency-glob: "src/requirements*.txt"}
@@ -38,20 +47,20 @@ jobs:
         shell: bash
         run: |
           python -m lab9.eval --shape swarm --spec "$EVAL_SPEC" --out reports/eval_pr.json
-          python -m lab9.gate --pr reports/eval_pr.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC"
+          python -m lab9.gate --pr reports/eval_pr.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC" --base-spec "$EVAL_BASE_SPEC"
       - name: Check the committed baseline and the M3 metric
         run: python -m lab9.ci_check --pr reports/eval_pr.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC"
       - name: Verify the gate accepts fixed
         shell: bash
         run: |
           python -m lab9.eval --shape fixed --spec "$EVAL_SPEC" --out reports/eval_fixed.json
-          python -m lab9.gate --pr reports/eval_fixed.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC"
+          python -m lab9.gate --pr reports/eval_fixed.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC" --base-spec "$EVAL_BASE_SPEC"
       - name: Verify the gate blocks seeded_regression
         shell: bash
         run: |
           python -m lab9.eval --shape seeded_regression --spec "$EVAL_SPEC" --out reports/eval_seeded_regression.json
           gate_status=0
-          gate_output=$(python -m lab9.gate --pr reports/eval_seeded_regression.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC") || gate_status=$?
+          gate_output=$(python -m lab9.gate --pr reports/eval_seeded_regression.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC" --base-spec "$EVAL_BASE_SPEC") || gate_status=$?
           printf '%s\n' "$gate_output"
           # A Python exception can also exit 1. Require the explicit pass_rate verdict.
           if [[ "$gate_status" -ne 1 ]] || ! grep -Eq '^exit 1 — blocked: ([^,]+, )*pass_rate(, |$)' <<< "$gate_output"; then
@@ -65,11 +74,14 @@ jobs:
     needs: eval-gate
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env: {PYTHONUTF8: "1"}
+    env:
+      PYTHONUTF8: "1"
+      BASE_REV: ${{ github.event.pull_request.base.sha || github.sha }}
+      EVAL_BASE_SPEC: .lab9-base-spec-v2.yaml
     defaults: {run: {working-directory: src}}
     steps:
       - uses: actions/checkout@v7
-        with: {persist-credentials: false}
+        with: {persist-credentials: false, fetch-depth: 0}
       - id: has
         run: "test -f reports/baseline_v2.json && echo v2=1 >> \"$GITHUB_OUTPUT\" || echo skip, no baseline_v2"
       - if: steps.has.outputs.v2
@@ -78,8 +90,26 @@ jobs:
       - if: steps.has.outputs.v2
         run: uv pip install -r requirements.txt -r requirements-lab9.txt
       - if: steps.has.outputs.v2
+        name: Read the base branch v2 spec for ratcheting
+        run: |
+          if git cat-file -e "${BASE_REV}:src/config/metric_spec_v2.yaml" 2>/dev/null; then
+            git show "${BASE_REV}:src/config/metric_spec_v2.yaml" > "$EVAL_BASE_SPEC"
+          else
+            cp config/metric_spec_v2.yaml "$EVAL_BASE_SPEC"
+          fi
+      - if: steps.has.outputs.v2
         run: python -m pytest -q -m student -o addopts= -k advanced
       - if: steps.has.outputs.v2
         run: python -m lab9.evalset --v2
       - if: steps.has.outputs.v2
-        run: python -m lab9.mutation --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json
+        run: python -m lab9.mutation --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json --base-spec "$EVAL_BASE_SPEC"
+      - if: steps.has.outputs.v2
+        name: Gate the PR swarm against the v2 baseline
+        run: |
+          python -m lab9.eval --shape swarm --spec config/metric_spec_v2.yaml --out reports/eval_pr_v2.json
+          python -m lab9.gate --pr reports/eval_pr_v2.json --baseline reports/baseline_v2.json --spec config/metric_spec_v2.yaml --base-spec "$EVAL_BASE_SPEC"
+      - if: steps.has.outputs.v2
+        name: Verify eval-gaming traps are blocked
+        run: |
+          python -m lab9.eval --shape slice_regression --spec config/metric_spec_v2.yaml --out reports/eval_slice_regression.json
+          python -m lab9.traps --pr reports/eval_slice_regression.json --baseline reports/baseline_v2.json --spec config/metric_spec_v2.yaml
